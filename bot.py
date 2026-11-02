@@ -68,24 +68,25 @@ class RoleView(discord.ui.View):
 # --- СОБЫТИЯ ---
 @bot.event
 async def on_ready():
-    await init_db() # Инициализируем базу при старте
+    await init_db()
     
-    # Регистрируем панели, чтобы кнопки работали после перезапуска
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute("SELECT DISTINCT guild_id FROM roles") as cursor:
             guilds = await cursor.fetchall()
             for (guild_id,) in guilds:
                 roles_data = await get_guild_roles(guild_id)
                 if roles_data:
-                    bot.add_view(RoleView(roles_data)) # "Вспоминаем" кнопки для каждого сервера
+                    bot.add_view(RoleView(roles_data))
 
-    # ГЛОБАЛЬНАЯ синхронизация (для всех серверов сразу)
-    try:
-        synced = await bot.tree.sync()
-        print(f"Синхронизировано {len(synced)} глобальных слэш-команд.")
-    except Exception as e:
-        print(f"Ошибка синхронизации: {e}")
-        
+    # ВРЕМЕННАЯ ЛОКАЛЬНАЯ СИНХРОНИЗАЦИЯ ДЛЯ БЫСТРОГО ТЕСТА
+    MY_GUILD_ID = 1390587480784240691 # <-- ВСТАВЬТЕ СЮДА ID ВАШЕГО ТЕСТОВОГО СЕРВЕРА
+    guild = discord.Object(id=MY_GUILD_ID)
+    
+    # Копируем глобальные команды в этот сервер и синхронизируем
+    bot.tree.copy_global_to(guild=guild)
+    synced = await bot.tree.sync(guild=guild)
+    
+    print(f"Синхронизировано {len(synced)} команд для тестового сервера.")
     print(f'Бот {bot.user} готов к работе!')
 
 # --- КОМАНДА: ДОБАВИТЬ РОЛЬ В ПАНЕЛЬ ---
