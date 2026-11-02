@@ -124,9 +124,6 @@ async def panel(interaction: discord.Interaction):
 
     await interaction.response.send_message("Выберите роли, нажав на кнопки ниже (!):", view=RoleView(roles_data))
 
-if __name__ == '__main__':
-    bot.run(TOKEN)
-
 @bot.event
 async def on_message(message):
     # 1. Игнорируем сообщения от самого бота (чтобы он не отвечал сам себе)
@@ -140,3 +137,7 @@ async def on_message(message):
 
     # 3. ОЧЕНЬ ВАЖНО: передаем сообщение дальше, чтобы работали обычные команды (если они у вас есть)
     await bot.process_commands(message)
+
+if __name__ == '__main__':
+    bot.run(TOKEN)
+
