@@ -126,3 +126,17 @@ async def panel(interaction: discord.Interaction):
 
 if __name__ == '__main__':
     bot.run(TOKEN)
+
+@bot.event
+async def on_message(message):
+    # 1. Игнорируем сообщения от самого бота (чтобы он не отвечал сам себе)
+    if message.author == bot.user:
+        return
+
+    # 2. Проверяем, упомянули ли бота в сообщении
+    if bot.user in message.mentions:
+        # Отвечаем пользователю (reply) с упоминанием
+        await message.reply(f"Привет, {message.author.mention}! >< Я кьюпишечка! Бот для выдачи ролей! Используй команду `/panel`, чтобы получить роль! Счастливого дня ><! Бваоваф!")
+
+    # 3. ОЧЕНЬ ВАЖНО: передаем сообщение дальше, чтобы работали обычные команды (если они у вас есть)
+    await bot.process_commands(message)
