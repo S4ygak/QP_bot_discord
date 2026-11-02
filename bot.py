@@ -66,7 +66,7 @@ class RoleView(discord.ui.View):
             self.add_item(RoleButton(role_id=r_id, label=r_label, emoji=r_emoji))
 
 # --- СОБЫТИЯ ---
-@@bot.event
+@bot.event
 async def on_ready():
     await init_db()
     
