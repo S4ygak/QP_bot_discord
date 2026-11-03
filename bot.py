@@ -4,14 +4,14 @@ from discord import app_commands
 import os
 import aiosqlite
 from dotenv import load_dotenv
+import random
+from typing import Literal
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 DB_NAME = "roles.db"
 
@@ -29,7 +29,6 @@ async def init_db():
             )
         ''')
         await db.commit()
-
 async def get_guild_roles(guild_id: int):
     """Получает список ролей для конкретного сервера"""
     async with aiosqlite.connect(DB_NAME) as db:
@@ -41,14 +40,12 @@ class RoleButton(discord.ui.Button):
     def __init__(self, role_id: int, label: str, emoji: str):
         super().__init__(style=discord.ButtonStyle.primary, label=label, emoji=emoji, custom_id=f"role:{role_id}")
         self.role_id = role_id
-
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         role = interaction.guild.get_role(self.role_id)
         if not role:
             await interaction.followup.send("⚠️ Роль была удалена с сервера ><", ephemeral=True)
             return
-
         member = interaction.user
         if role in member.roles:
             await member.remove_roles(role)
@@ -69,7 +66,6 @@ class RoleView(discord.ui.View):
 @bot.event
 async def on_ready():
     await init_db()
-    
     # Восстанавливаем кнопки после перезапуска
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute("SELECT DISTINCT guild_id FROM roles") as cursor:
@@ -78,14 +74,12 @@ async def on_ready():
                 roles_data = await get_guild_roles(guild_id)
                 if roles_data:
                     bot.add_view(RoleView(roles_data))
-
     # ГЛОБАЛЬНАЯ СИНХРОНИЗАЦИЯ (для всех серверов сразу)
     try:
         synced = await bot.tree.sync()
         print(f"Синхронизировано {len(synced)} глобальных слэш-команд.")
     except Exception as e:
         print(f"Ошибка синхронизации: {e}")
-        
     print(f'Бот {bot.user} готов к работе!')
 
 # --- КОМАНДА: ДОБАВИТЬ РОЛЬ В ПАНЕЛЬ ---
@@ -114,7 +108,7 @@ async def addrole(interaction: discord.Interaction, role: discord.Role, label: s
 
 # --- КОМАНДА: ОТПРАВИТЬ ПАНЕЛЬ ---
 @bot.tree.command(name="panel", description="Отправить панель с ролями в этот канал")
-@app_commands.default_permissions(manage_roles=True)
+
 async def panel(interaction: discord.Interaction):
     roles_data = await get_guild_roles(interaction.guild_id)
     
@@ -137,6 +131,33 @@ async def on_message(message):
 
     # 3. ОЧЕНЬ ВАЖНО: передаем сообщение дальше, чтобы работали обычные команды (если они у вас есть)
     await bot.process_commands(message)
+
+@bot.tree.command(name="roll", description="Бросить кубики")
+@app_commands.describe(
+    count="Сколько кубиков бросить (от 1 до 5)",
+    sides="Тип кубика (d6 или d20)"
+)
+async def roll(interaction: discord.Interaction, count: int, sides: Literal[6, 20] = 6):
+    # Проверяем, чтобы не бросили 0 или 1000 кубиков (чтобы не сломать лимит сообщений Discord)
+    if count < 1 or count > 5:
+        await interaction.response.send_message("❌ Можно бросить от 1 до 5 кубиков за раз!", ephemeral=True)
+        return
+    # Бросаем кубики
+    results = [random.randint(1, sides) for _ in range(count)]
+    total = sum(results)
+    # Красиво оформляем результат
+    if count == 1:
+        # Если бросили один кубик
+        await interaction.response.send_message(f"🎲 {interaction.user.mention} бросает **d{sides}** и выпадает: **{total}**")
+    else:
+        # Если бросили несколько кубиков, показываем все результаты
+        results_str = " + ".join(str(r) for r in results)
+        await interaction.response.send_message(
+            f"🎲 {interaction.user.mention} бросает **{count}d{sides}**:\n"
+            f"> {results_str}\n"
+            f"**Итого: {total}**"
+        )
+
 
 if __name__ == '__main__':
     bot.run(TOKEN)
